@@ -5,14 +5,12 @@ import axios from "axios";
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 import FormData from "form-data";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
-// import { createRequire } from "module";
-// const require = createRequire(import.meta.url);
-// const pdfModule = require("pdf-parse");
-// const pdfParse = pdfModule.default || pdfModule;
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
 
-
+// ✅ This always returns a function
+const pdfParser = require("pdf-parse/lib/pdf-parse.js");
 
 const AI = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -225,8 +223,15 @@ export const resumeReview = async (req, res) => {
 
     if (plan !== "premium") {
       return res.json({
-        success: false,
+        succes: false,
         message: "This feature is only available for premium subscriptions",
+      });
+    }
+
+    if (!resume) {
+      return res.json({
+        success: false,
+        message: "No resume file uploaded",
       });
     }
 
@@ -237,23 +242,13 @@ export const resumeReview = async (req, res) => {
       });
     }
 
-    // ✅ Read PDF file
+   
     const dataBuffer = fs.readFileSync(resume.path);
-    const uint8Array = new Uint8Array(dataBuffer);
+    const pdfData = await pdfParser(dataBuffer);
+    const text = pdfData.text;
 
-    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
 
-    const pdf = await loadingTask.promise;
-
-    let text = "";
-
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const content = await page.getTextContent();
-      text += content.items.map((item) => item.str).join(" ") + "\n";
-    }
-
-    const prompt = `Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement:\n\n${text}`;
+    const prompt = `Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement. Resume Content:\n\n${pdfData.text}`;
 
     const response = await AI.chat.completions.create({
       model: "gemini-2.0-flash",
@@ -264,14 +259,11 @@ export const resumeReview = async (req, res) => {
 
     const content = response.choices[0].message.content;
 
-    await sql`
-      INSERT INTO creations (user_id, prompt, content, type)
-      VALUES (${userId}, 'Review the uploaded resume', ${content}, 'resume-review')
-    `;
+    await sql` INSERT INTO creations (user_id, prompt, content, type) VALUES (${userId}, 'Review the uploaded resume', ${content}, 'resume-review') `;
 
     res.json({ success: true, content });
   } catch (error) {
-    console.log("RESUME ERROR:", error.message);
+    console.log(error.message);
     res.json({ success: false, message: error.message });
   }
 };
