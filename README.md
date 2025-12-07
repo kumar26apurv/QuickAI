@@ -44,7 +44,7 @@ This project is ideal for showcasing:
 * Node.js
 * Express.js
 * PostgreSQL (Neon Serverless)
-* Gemini AI API
+* Groq AI API
 * Cloudinary
 
 ---
@@ -105,7 +105,7 @@ VITE_BASE_URL=
 DATABASE_URL=
 CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
-GEMINI_API_KEY=
+GROQ_API_KEY=
 CLIPDROP_API_KEY=
 CLOUDINARY_CLDN_NAME=
 CLOUDINARY_API_KEY=
